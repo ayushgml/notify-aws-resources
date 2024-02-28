@@ -13,6 +13,9 @@ import (
 )
 
 var messages []string
+var instanceArray []string
+
+var instanceWaitGroup sync.WaitGroup
 
 func main() {
 	startTime := time.Now()
@@ -64,6 +67,10 @@ func main() {
 		fmt.Println(message)
 	}
 
+	for _, instance := range instanceArray {
+		fmt.Println(instance)
+	}
+
 	elapsedTime := time.Since(startTime)
 	fmt.Printf("Total time to execute: %s\n", elapsedTime)
 }
@@ -83,6 +90,34 @@ func checkEC2Instances(cfg aws.Config, region string) {
 
 	if instanceCount > 0 {
 		messages = append(messages, fmt.Sprintf("EC2 instances found in region %s. Count=%d", region, instanceCount))
+		instanceWaitGroup.Add(instanceCount)
+		getEC2Instances(cfg, region)
+	}
+
+	instanceWaitGroup.Wait()
+}
+
+func getEC2Instances(cfg aws.Config, region string) {
+	defer instanceWaitGroup.Done()
+
+	ec2Client := ec2.NewFromConfig(cfg)
+	instancesOutput, err := ec2Client.DescribeInstances(context.TODO(), &ec2.DescribeInstancesInput{})
+	if err != nil {
+		messages = append(messages, fmt.Sprintf("Unable to retrieve EC2 instances in region %s: %v", region, err))
+		return
+	}
+	
+	for _, reservation := range instancesOutput.Reservations {
+		for _, instance := range reservation.Instances {
+			instanceId := *instance.InstanceId
+			instanceType := instance.InstanceType
+			launchTime := *instance.LaunchTime
+			launchTimeFormatted := launchTime.Format("2006-01-02 15:04:05")
+			availabilityZone := *instance.Placement.AvailabilityZone
+			platform := instance.Platform
+			state := instance.State.Name
+			instanceArray = append(instanceArray, fmt.Sprintf("Instance ID: %s, Instance Type: %s, Launch Time: %s, Availability Zone: %s, Platform: %s, State: %s, Region: %s\n", instanceId, instanceType, launchTimeFormatted, availabilityZone, platform, state, region))
+		}
 	}
 }
 
