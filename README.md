@@ -5,6 +5,7 @@
 <div align="center">
   <a href="https://github.com/ayushgml/notify-aws-resources">
     <!-- You can insert a logo image link here -->
+    <img src="image.webp" alt="Logo" width="50%" height="auto">
   </a>
 
   <h1 align="center">AWS Resources Monitor & Notifier</h1>
@@ -61,3 +62,36 @@ To get a local copy up and running follow these simple steps.
    ```sh
    cd notify-aws-resources
     ```
+
+3. Compile the Go script (if necessary)
+   ```sh
+   go build -o monitorAWSResourcesProgram
+   ```
+
+4. Change the location of the directory in the `notify_aws_resources.sh` script to the project directory
+   ```sh
+   cd /path/to/notify-aws-resources
+   ```
+
+5. Make the `notify_aws_resources.sh` script executable
+   ```sh
+   chmod +x notify_aws_resources.sh
+   ```
+
+6. Set up a cron job or a scheduled task to run the notification script regularly
+   ```sh
+    crontab -e
+    ```
+
+7. Add the following line to the crontab file to run the script(You can change the schedule as per your requirement)
+   ```sh
+   0 15 * * * /path-to-your-directory/notify_aws_resources.sh
+   ```
+
+## Contribution
+The project is open to contributions. Feel free to open a pull request or an issue if you find a bug or want to add a feature.
+
+
+## Contact
+
+Ayush Gupta - [@itsayush\_\_](https://twitter.com/itsayush__) - ayushgml@gmail.com
