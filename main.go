@@ -90,7 +90,7 @@ func checkEC2Instances(cfg aws.Config, region string) {
 
 	if instanceCount > 0 {
 		messages = append(messages, fmt.Sprintf("EC2 instances found in region %s. Count=%d", region, instanceCount))
-		instanceWaitGroup.Add(instanceCount)
+		instanceWaitGroup.Add(1)
 		getEC2Instances(cfg, region)
 	}
 
