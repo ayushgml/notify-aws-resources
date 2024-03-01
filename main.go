@@ -79,6 +79,9 @@ func main() {
 	}
 
 	elapsedTime := time.Since(startTime)
+	if len(messages) == 0 {
+		fmt.Println("No issues found")
+	}
 	fmt.Printf("Total time to execute: %s\n", elapsedTime)
 }
 
