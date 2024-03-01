@@ -8,16 +8,19 @@ import (
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/config"
+	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	"github.com/aws/aws-sdk-go-v2/service/rds"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 )
 
-var messages []string
-var instanceArray []string
-
-var instanceWaitGroup sync.WaitGroup
-var rdsWaitGroup sync.WaitGroup
+var (
+	messages          []string
+	detailedMessages  []string
+	instanceWaitGroup sync.WaitGroup
+	rdsWaitGroup      sync.WaitGroup
+	dynamoDBWaitGroup sync.WaitGroup
+)
 
 func main() {
 	startTime := time.Now()
@@ -58,6 +61,7 @@ func main() {
 				defer resourceWG.Done()
 				checkEC2Instances(regionalCfg, regionName)
 				checkRDSInstances(regionalCfg, regionName)
+				checkDynamoDBTables(regionalCfg, regionName)
 			}()
 
 			resourceWG.Wait()
@@ -70,7 +74,7 @@ func main() {
 		fmt.Println(message)
 	}
 
-	for _, instance := range instanceArray {
+	for _, instance := range detailedMessages {
 		fmt.Println(instance)
 	}
 
@@ -112,7 +116,7 @@ func getEC2Instances(instancesOutput *ec2.DescribeInstancesOutput, region string
 			availabilityZone := *instance.Placement.AvailabilityZone
 			platform := instance.Platform
 			state := instance.State.Name
-			instanceArray = append(instanceArray, fmt.Sprintf("EC2 Instance ID: %s, Instance Type: %s, "+
+			detailedMessages = append(detailedMessages, fmt.Sprintf("EC2 Instance ID: %s, Instance Type: %s, "+
 				"Launch Time: %s, Availability Zone: %s, Platform: %s, State: %s, Region: %s\n",
 				instanceId, instanceType, launchTimeFormatted, availabilityZone, platform, state, region))
 		}
@@ -161,8 +165,35 @@ func getRDSInstances(instancesOutput *rds.DescribeDBInstancesOutput, region stri
 		creationTimeFormatted := creationTime.Format("2006-01-02 15:04:05")
 		availabilityZone := *instance.AvailabilityZone
 		engine := *instance.Engine
-		instanceArray = append(instanceArray, fmt.Sprintf("RDS Instance ID: %s, Instance Class: %s, "+
+		detailedMessages = append(detailedMessages, fmt.Sprintf("RDS Instance ID: %s, Instance Class: %s, "+
 			"Creation Time: %s, Availability Zone: %s, Engine: %s, region: %s\n",
 			instanceId, instanceClass, creationTimeFormatted, availabilityZone, engine, region))
+	}
+}
+
+func checkDynamoDBTables(cfg aws.Config, region string) {
+	DynamoDBClient := dynamodb.NewFromConfig(cfg)
+	tablesOutput, err := DynamoDBClient.ListTables(context.TODO(), &dynamodb.ListTablesInput{})
+	if err != nil {
+		messages = append(messages, fmt.Sprintf("Unable to retrieve DynamoDB tables in region %s: %v", region, err))
+		return
+	}
+
+	tableCount := len(tablesOutput.TableNames)
+	if tableCount > 0 {
+		messages = append(messages, fmt.Sprintf("DynamoDB tables found in region %s. Count=%d", region, tableCount))
+		dynamoDBWaitGroup.Add(1)
+		getDynamoDBTables(tablesOutput, region)
+	}
+
+	dynamoDBWaitGroup.Wait()
+
+}
+
+func getDynamoDBTables(tablesOutput *dynamodb.ListTablesOutput, region string) {
+	defer dynamoDBWaitGroup.Done()
+
+	for _, table := range tablesOutput.TableNames {
+		detailedMessages = append(detailedMessages, fmt.Sprintf("DynamoDB Table in region %s: %s\n", region, table))
 	}
 }
